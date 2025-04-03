@@ -1,17 +1,16 @@
-# Directory that starts with .
+# Directory
 .*/
 
-# Python
 __pycache__/
 *.ipynb_checkpoints/
 log/
 venv/
-
-# local
 /local/
+output*/
 
 # File
 *.log
 *.pyc
 .DS_Store
 .env
+*.db
