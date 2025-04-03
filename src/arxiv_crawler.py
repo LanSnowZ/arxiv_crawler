@@ -1,12 +1,13 @@
 import asyncio
 import re
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from itertools import chain
 
 import aiohttp
 from bs4 import BeautifulSoup, NavigableString, Tag
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
+
 from src.arxiv_time import next_arxiv_update_day
 from src.paper import Paper, PaperDatabase, PaperExporter
 
@@ -16,10 +17,27 @@ class ArxivScraper(object):
         self,
         date_from,
         date_until,
-        subject_list=["computer_science", "physics", "economics", "eess", "mathematics", "q_biology", "q_finance", "statistics"],
+        subject_list=[
+            "computer_science",
+            "physics",
+            "economics",
+            "eess",
+            "mathematics",
+            "q_biology",
+            "q_finance",
+            "statistics",
+        ],
         category_blacklist=[],
         category_whitelist=["cs.CV", "cs.AI", "cs.LG", "cs.CL", "cs.IR", "cs.MA"],
-        optional_keywords=["LLM", "LLMs", "language model", "language models", "multimodal", "finetuning", "GPT"],
+        optional_keywords=[
+            "LLM",
+            "LLMs",
+            "language model",
+            "language models",
+            "multimodal",
+            "finetuning",
+            "GPT",
+        ],
         trans_to="zh-CN",
         proxy=None,
     ):
@@ -46,14 +64,20 @@ class ArxivScraper(object):
         self.search_from_date = datetime.strptime(date_from[:-3], "%Y-%m")
         self.search_until_date = datetime.strptime(date_until[:-3], "%Y-%m")
         if self.search_from_date.month == self.search_until_date.month:
-            self.search_until_date = (self.search_from_date + timedelta(days=31)).replace(day=1)
+            self.search_until_date = (
+                self.search_from_date + timedelta(days=31)
+            ).replace(day=1)
         # 由于arxiv的奇怪机制，每个月的第一天公布的文章总会被视作上个月的文章, 所以需要将月初文章的首次公布日期往后推一天
-        self.fisrt_announced_date = next_arxiv_update_day(next_arxiv_update_day(self.search_from_date) + timedelta(days=1))
+        self.fisrt_announced_date = next_arxiv_update_day(
+            next_arxiv_update_day(self.search_from_date) + timedelta(days=1)
+        )
 
         self.subject_list = subject_list
         self.category_blacklist = category_blacklist  # used as metadata
         self.category_whitelist = category_whitelist  # used as metadata
-        self.optional_keywords = [kw.replace(" ", "+") for kw in optional_keywords]  # url转义
+        self.optional_keywords = [
+            kw.replace(" ", "+") for kw in optional_keywords
+        ]  # url转义
 
         self.trans_to = trans_to  # translate
         self.proxy = proxy
@@ -65,7 +89,9 @@ class ArxivScraper(object):
         self.papers: list[Paper] = []  # fetch_all
 
         self.paper_db = PaperDatabase()
-        self.paper_exporter = PaperExporter(date_from, date_until, category_blacklist, category_whitelist)
+        self.paper_exporter = PaperExporter(
+            date_from, date_until, category_blacklist, category_whitelist
+        )
         self.console = Console()
 
     @property
@@ -73,7 +99,9 @@ class ArxivScraper(object):
         """
         返回搜索的元数据
         """
-        return dict(repo_url="https://github.com/huiyeruzhou/arxiv_crawler", **self.__dict__)
+        return dict(
+            repo_url="https://github.com/huiyeruzhou/arxiv_crawler", **self.__dict__
+        )
 
     def get_url(self, start):
         """
@@ -90,7 +118,9 @@ class ArxivScraper(object):
         )
         date_from = self.search_from_date.strftime("%Y-%m")
         date_until = self.search_until_date.strftime("%Y-%m")
-        subjects_query = '&classification-{}=y'.format('=y&classification-'.join(self.subject_list))
+        subjects_query = "&classification-{}=y".format(
+            "=y&classification-".join(self.subject_list)
+        )
         return (
             f"https://arxiv.org/search/advanced?advanced={kwargs}"
             f"{subjects_query}&classification-physics_archives=all&"
@@ -98,6 +128,7 @@ class ArxivScraper(object):
             f"date-year=&date-filter_by=date_range&date-from_date={date_from}&date-to_date={date_until}&"
             f"date-date_type={self.filt_date_by}&abstracts=show&size={self.step}&order={self.order}&start={start}"
         )
+
     async def request(self, start):
         """
         异步请求网页，重试至多3次
@@ -106,12 +137,14 @@ class ArxivScraper(object):
         url = self.get_url(start)
         while error <= 3:
             try:
-                async with aiohttp.ClientSession(trust_env=True, read_timeout=10) as session:
+                async with aiohttp.ClientSession(
+                    trust_env=True, read_timeout=10
+                ) as session:
                     async with session.get(url, proxy=self.proxy) as response:
                         response.raise_for_status()
                         content = await response.text()
                         return content
-            except Exception as e:
+            except Exception:
                 error += 1
                 self.console.log(f"[bold red]Request {start} cause error: ")
                 self.console.print_exception()
@@ -155,7 +188,7 @@ class ArxivScraper(object):
             papers_list = await asyncio.gather(*fetch_tasks)
             self.papers.extend(chain(*papers_list))
 
-        self.console.log(f"[bold green]Fetching completed. ")
+        self.console.log("[bold green]Fetching completed. ")
         if self.trans_to:
             await self.translate()
         self.process_papers()
@@ -171,20 +204,27 @@ class ArxivScraper(object):
         last_update = self.paper_db.newest_update_time()
         # 检查一下上次之后的最近一个arxiv更新日期
         self.search_from_date = next_arxiv_update_day(last_update)
-        self.console.log(f"[bold yellow]last update: {last_update.strftime('%Y-%m-%d %H:%M:%S')}, "
-                         f"next arxiv update: {self.search_from_date.strftime('%Y-%m-%d')}" 
-                         )
-        self.console.log(f"[bold yellow]UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.console.log(
+            f"[bold yellow]last update: {last_update.strftime('%Y-%m-%d %H:%M:%S')}, "
+            f"next arxiv update: {self.search_from_date.strftime('%Y-%m-%d')}"
+        )
+        self.console.log(
+            f"[bold yellow]UTC now: {utc_now.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         # 如果还没到更新时间就不更新了
         if self.search_from_date >= utc_now:
-            self.console.log(f"[bold red]Your database is already up to date.")
+            self.console.log("[bold red]Your database is already up to date.")
             return
         # 如果这一次的更新时间恰好是这个月的第一个更新日，那么当日更新的文章都会出现在上个月的搜索结果中
         # 为了正确获得这天的文章，我们上推一个月的搜索时间
         self.fisrt_announced_date = self.search_from_date
-        if self.search_from_date == next_arxiv_update_day(self.search_from_date.replace(day=1)):
+        if self.search_from_date == next_arxiv_update_day(
+            self.search_from_date.replace(day=1)
+        ):
             self.search_from_date = self.search_from_date - timedelta(days=31)
-            self.console.log(f"[bold yellow]The update in {self.fisrt_announced_date.strftime('%Y-%m-%d')} can only be found in the previous month.")
+            self.console.log(
+                f"[bold yellow]The update in {self.fisrt_announced_date.strftime('%Y-%m-%d')} can only be found in the previous month."
+            )
         else:
             self.console.log(
                 f"[bold green]Searching from {self.search_from_date.strftime('%Y-%m-%d')} "
@@ -198,7 +238,9 @@ class ArxivScraper(object):
                 break
 
             continue_update = self.update(start)
-        self.console.log(f"[bold green]Fetching completed. {len(self.papers)} new papers.")
+        self.console.log(
+            f"[bold green]Fetching completed. {len(self.papers)} new papers."
+        )
         if self.trans_to:
             asyncio.run(self.translate())
         self.process_papers()
@@ -208,18 +250,20 @@ class ArxivScraper(object):
         推断文章的首次公布日期, 并将文章添加到数据库中
         """
         # 从下一个可能的公布日期开始
-        announced_date = next_arxiv_update_day(self.fisrt_announced_date)   
+        announced_date = next_arxiv_update_day(self.fisrt_announced_date)
         self.console.log(f"fisrt announced date: {announced_date.strftime('%Y-%m-%d')}")
         # 按照从前到后的时间顺序梳理文章
         for paper in reversed(self.papers):
             # 文章于T日美东时间14:00(T UTC+0 18:00)前提交，将于T日美东时间20:00(T+1 UTC+0 00:00)公布，T始终为工作日。
             # 因此可知美东 T日的文章至少在UTC+0 T+1日公布，如果超过14:00甚至会在UTC+0 T+2日公布
-            next_possible_annouced_date = next_arxiv_update_day(paper.first_submitted_date + timedelta(days=1))
+            next_possible_annouced_date = next_arxiv_update_day(
+                paper.first_submitted_date + timedelta(days=1)
+            )
             if announced_date < next_possible_annouced_date:
                 announced_date = next_possible_annouced_date
             paper.first_announced_date = announced_date
         self.paper_db.add_papers(self.papers)
-    
+
     def reprocess_papers(self):
         """
         这会从数据库中获取所有文章, 并重新推断文章的首次公布日期，并打印调试信息
@@ -314,18 +358,21 @@ class ArxivScraper(object):
 
         soup = BeautifulSoup(content, "html.parser")
         if not self.total:
-            total = soup.select("#main-container > div.level.is-marginless > div.level-left > h1")[0].text
+            total = soup.select(
+                "#main-container > div.level.is-marginless > div.level-left > h1"
+            )[0].text
             # "Showing 1–50 of 2,542,002 results" or "Sorry, your query returned no results"
             if "Sorry" in total:
                 self.total = 0
                 return []
-            total = int(total[total.find("of") + 3 : total.find("results")].replace(",", ""))
+            total = int(
+                total[total.find("of") + 3 : total.find("results")].replace(",", "")
+            )
             self.total = total
 
         results = soup.find_all("li", {"class": "arxiv-result"})
         papers = []
         for result in results:
-
             url_tag = result.find("a")
             url = url_tag["href"] if url_tag else "No link"
 
@@ -348,18 +395,30 @@ class ArxivScraper(object):
 
             category_tag = result.find_all("span", class_="tag")
             categories = [
-                category.get_text(strip=True) for category in category_tag if "tooltip" in category.get("class")
+                category.get_text(strip=True)
+                for category in category_tag
+                if "tooltip" in category.get("class")
             ]
 
             authors_tag = result.find("p", class_="authors")
-            authors = authors_tag.get_text(strip=True)[len("Authors:") :] if authors_tag else "No authors"
+            authors = (
+                authors_tag.get_text(strip=True)[len("Authors:") :]
+                if authors_tag
+                else "No authors"
+            )
 
             summary_tag = result.find("span", class_="abstract-full")
-            abstract = self.parse_search_text(summary_tag) if summary_tag else "No summary"
+            abstract = (
+                self.parse_search_text(summary_tag) if summary_tag else "No summary"
+            )
             abstract = abstract.strip()
 
             comments_tag = result.find("p", class_="comments")
-            comments = comments_tag.get_text(strip=True)[len("Comments:") :] if comments_tag else "No comments"
+            comments = (
+                comments_tag.get_text(strip=True)[len("Comments:") :]
+                if comments_tag
+                else "No comments"
+            )
 
             papers.append(
                 Paper(
@@ -413,10 +472,20 @@ class ArxivScraper(object):
 
             await asyncio.gather(*[worker(paper) for paper in self.papers])
 
-    def to_markdown(self, output_dir="./output_llms", filename_format="%Y-%m-%d", meta=False):
-        self.paper_exporter.to_markdown(output_dir, filename_format, self.meta_data if meta else None)
+    def to_markdown(
+        self, output_dir="./output_llms", filename_format="%Y-%m-%d", meta=False
+    ):
+        self.paper_exporter.to_markdown(
+            output_dir, filename_format, self.meta_data if meta else None
+        )
 
-    def to_csv(self, output_dir="./output_llms", filename_format="%Y-%m-%d",  header=False, csv_config={},):
+    def to_csv(
+        self,
+        output_dir="./output_llms",
+        filename_format="%Y-%m-%d",
+        header=False,
+        csv_config={},
+    ):
         self.paper_exporter.to_csv(output_dir, filename_format, header, csv_config)
 
 

@@ -46,7 +46,11 @@ def TL(a):
             if m < 2048:
                 e.append(m >> 6 | 192)
             else:
-                if 55296 == (m & 64512) and g + 1 < len(a) and 56320 == (ord(a[g + 1]) & 64512):
+                if (
+                    55296 == (m & 64512)
+                    and g + 1 < len(a)
+                    and 56320 == (ord(a[g + 1]) & 64512)
+                ):
                     m = 65536 + ((m & 1023) << 10) + (ord(a[g + 1]) & 1023)
                     g += 1
                     e.append(m >> 18 | 240)
@@ -68,7 +72,9 @@ def TL(a):
     return str(a) + jd + str(int(a) ^ int(b))
 
 
-async def async_google_translate(data, url="https://translate.googleapis.com", proxy=None):
+async def async_google_translate(
+    data, url="https://translate.googleapis.com", proxy=None
+):
     """
     参考zotero翻译插件的代码
     https://github.com/windingwind/zotero-pdf-translate/blob/main/src/modules/services/google.ts
@@ -115,7 +121,7 @@ async def async_google_translate(data, url="https://translate.googleapis.com", p
 
                     data.result = result
                 return
-        except Exception as e:
+        except Exception:
             error += 1
             pass
 

@@ -27,7 +27,10 @@ def next_arxiv_update_day(time: datetime):
 
     # 上述假期均为美国东部时间（UTC-4），因此9.2放假会导致9.3 UTC+0的更新推迟
     # arxiv的更新时间为周日-周四的美东20:00，对应周一到周五的UTC 00:00
-    while time.date() - timedelta(days=1) in HOLIDAY_2024_date or time.weekday() in [5, 6]:
+    while time.date() - timedelta(days=1) in HOLIDAY_2024_date or time.weekday() in [
+        5,
+        6,
+    ]:
         time = time + timedelta(days=1)
     return time
 
