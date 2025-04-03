@@ -7,8 +7,8 @@ import aiohttp
 from bs4 import BeautifulSoup, NavigableString, Tag
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
-from arxiv_time import next_arxiv_update_day
-from paper import Paper, PaperDatabase, PaperExporter
+from src.arxiv_time import next_arxiv_update_day
+from src.paper import Paper, PaperDatabase, PaperExporter
 
 
 class ArxivScraper(object):

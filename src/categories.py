@@ -243,7 +243,7 @@ if __name__ == "__main__":
     import requests
     from bs4 import BeautifulSoup
 
-    from async_translator import translate
+    from src.async_translator import translate
 
     # 请求页面内容
     url = "https://arxiv.org/category_taxonomy"

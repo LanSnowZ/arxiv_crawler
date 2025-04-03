@@ -1,7 +1,7 @@
 import yaml
 from datetime import date, timedelta
-from arxiv_crawler import ArxivScraper
-from push_to_feishu import Push2Feishu
+from src.arxiv_crawler import ArxivScraper
+from src.push_to_feishu import Push2Feishu
 import asyncio
 import os
 

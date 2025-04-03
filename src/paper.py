@@ -9,8 +9,8 @@ from pathlib import Path
 from rich.console import Console
 from typing_extensions import Iterable
 
-from async_translator import async_translate
-from categories import parse_categories
+from src.async_translator import async_translate
+from src.categories import parse_categories
 
 
 
