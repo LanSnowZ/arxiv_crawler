@@ -1,6 +1,17 @@
-**/__pycache__
-**/.mypy_cache
-output*/
-test
-run.py
-papers.db
+# Directory that starts with .
+.*/
+
+# Python
+__pycache__/
+*.ipynb_checkpoints/
+log/
+venv/
+
+# local
+/local/
+
+# File
+*.log
+*.pyc
+.DS_Store
+.env
